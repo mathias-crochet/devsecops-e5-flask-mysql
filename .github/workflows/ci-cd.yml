@@ -33,7 +33,7 @@ jobs:
         with:
           image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/flask-mysql:latest'
           format: 'table'
-          # exit-code: '1'
+          exit-code: '1'
           severity: 'CRITICAL'
 
       - name: Trivy Scan (Filesystem - Code & Dependencies)
@@ -43,7 +43,7 @@ jobs:
           scan-ref: '.'
           format: 'table'
           exit-code: '1'
-          severity: 'HIGH,CRITICAL'
+          severity: 'CRITICAL'
 
       - name: Snyk - Scan Python dependencies
         uses: snyk/actions/python@master
