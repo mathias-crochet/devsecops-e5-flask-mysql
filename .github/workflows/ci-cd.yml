@@ -1,0 +1,66 @@
+name: CI/CD Secure Pipeline
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  IMAGE_NAME: flask-app
+  DB_IMAGE_NAME: mysql:8.0
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r app/requirements.txt
+
+      - name: Snyk - Scan Python dependencies
+        uses: snyk/actions/python@master
+        with:
+          args: --file=app/requirements.txt
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image (web)
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest ./app
+
+      - name: Snyk - Scan Docker image (web)
+        uses: snyk/actions/docker@master
+        with:
+          image: ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Snyk - Scan Docker image (MySQL)
+        uses: snyk/actions/docker@master
+        with:
+          image: $DB_IMAGE_NAME
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Push Docker image to DockerHub
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest
